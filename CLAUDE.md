@@ -51,6 +51,12 @@ fast. Prints per-tier entry counts and warns about unmatched weapons.
    order surviving into the emitted data. Don't sort perk lists.
 5. **Enhanced perks:** entries use base perk hashes; DIM normalizes enhanced
    traits to base when matching. Don't emit enhanced hashes.
+6. **`docs/index.html` is hand-maintained, not templated.** `build_ui()` patches
+   the existing file in place with three regexes — `const DATA = [...];`,
+   `const ICONS = {...};`, and the first `<n> entries` in the footer. Edit the
+   markup freely, but keep those two `const` lines on their own lines and leave
+   a literal entry count in the footer *above* the script, or a rebuild will
+   silently stop updating the page.
 
 ## Known limits (don't try to "fix" in the file format)
 

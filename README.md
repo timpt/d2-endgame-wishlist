@@ -49,9 +49,10 @@ can't drift. Commit the two changed files and push.
 
 ## Deploy for a friend
 
-1. Push this repo to GitHub (public — required for both raw wishlist URLs and
-   Pages on a free account).
+1. The repo lives at [`timpt/d2-endgame-wishlist`](https://github.com/timpt/d2-endgame-wishlist).
+   It has to be public for raw wishlist URLs and Pages on a free account.
 2. **Site:** Settings → Pages → Deploy from branch `main`, folder `/docs`.
+   Lands on `https://timpt.github.io/d2-endgame-wishlist/`.
 3. **Wishlist:** open the `.txt` on GitHub → *Raw* → send them that URL to paste
    into DIM's wishlist field.
 4. Tell them the model in one line: *a thumb means the drop made a complete
