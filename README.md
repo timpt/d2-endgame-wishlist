@@ -43,6 +43,11 @@ data regenerated once with the current generator (see below) before it works.
 | `wishlistnotes:"good roll"` | Right traits, wrong barrel/mag |
 | `is:wishlist` | Anything flagged |
 
+One extra filter stacks with all of those: every note also carries the sheet's
+recommended roll — entries that *are* it get a `★ RECOMMENDED ROLL` tag
+(`wishlistnotes:"recommended roll"`), every other note names it after `★ Rec:`
+so you can see what you're missing right in DIM.
+
 Full reference: [`docs/WISHLIST.md`](docs/WISHLIST.md).
 
 ## Rebuild after a spreadsheet update

@@ -176,7 +176,7 @@ def generate(rows, slim, weapons_by_name, plugsets):
     stats = Counter()
 
     # ---- pass 1: resolve every weapon row against every candidate hash ----
-    resolved = []  # (row, hash, rb, rm, r1, r2, otail)
+    resolved = []  # (row, hash, rb, rm, r1, r2, otail, rec_hint)
     for w in rows:
         base = w['Name'].split('\n')[0].strip()
         p1s, p2s = opts(w['Perk 1']), opts(w['Perk 2'])
@@ -200,7 +200,12 @@ def generate(rows, slim, weapons_by_name, plugsets):
             if (p1s and not r1) or (p2s and not r2):
                 continue
             ro = next((canon[norm(o)] for o in origins if norm(o) in canon), None)
-            resolved.append((w, wh, rb, rm, r1, r2, [ro] if ro else []))
+            # the recommended roll on THIS hash: the first-listed option per
+            # column that the hash can actually roll (relevant on legacy hashes
+            # that can't roll the sheet's true top pick)
+            rec_hint = ' + '.join(next(o for o in src if norm(o) in canon)
+                                  for src, res in ((p1s, r1), (p2s, r2)) if res)
+            resolved.append((w, wh, rb, rm, r1, r2, [ro] if ro else [], rec_hint))
 
     # ---- pass 2: emit ladder sections ----
     lines = [
@@ -212,6 +217,8 @@ def generate(rows, slim, weapons_by_name, plugsets):
         'per column, deepest first) > God Roll (one per column + barrel/mag) > '
         'Good Roll. Single lone perks are not flagged. Filter: wishlistnotes:"perfect roll", '
         '"full set", "combo 3+3" etc., "god roll", "good roll". '
+        'Every note also shows the sheet’s recommended roll; entries that ARE it '
+        'read “★ RECOMMENDED ROLL” — filter wishlistnotes:"recommended roll". '
         'Masterworks not matched.',
         '',
     ]
@@ -222,41 +229,52 @@ def generate(rows, slim, weapons_by_name, plugsets):
     def section(title):
         lines.extend(['', f'// ============ {title} ============', ''])
 
-    def emit(wh, perks, label, w):
+    def emit(wh, perks, label, w, is_rec, rec_hint):
+        # every note carries the recommendation: either "this IS it" (a
+        # filterable tag) or a hint naming the top-pick traits
+        extra = ' | ★ RECOMMENDED ROLL' if is_rec else f' | ★ Rec: {rec_hint}'
         lines.append(f"dimwishlist:item={wh}&perks={','.join(map(str, perks))}"
-                     f"#notes:{label} — {tag_of(w)}")
+                     f"#notes:{label} — {tag_of(w)}{extra}")
         stats[label.lower().replace(' ', '_').replace('+', 'p')] += 1
+
+    # An entry "is" the recommended roll when its traits include the
+    # first-resolvable pick in each column AND any barrel/mag it names are the
+    # first-resolvable ones. Entries that omit barrel/mag entirely (Full Set,
+    # Combo, Good) can still be the recommendation — trait-wise it's all there.
 
     # 1. Perfect Roll
     section('1. PERFECT ROLL (all listed traits + barrel/mag)')
-    for w, wh, rb, rm, r1, r2, otail in resolved:
+    for w, wh, rb, rm, r1, r2, otail, hint in resolved:
         if r1 and r2 and len(r1) <= 3 and len(r2) <= 3 and (rb or rm):
             for bc in (rb or [None]):
                 for mc in (rm or [None]):
                     perks = [x for x in [bc, mc] if x] + r1 + r2 + otail
-                    emit(wh, perks, 'Perfect Roll', w)
+                    rec = (not rb or bc == rb[0]) and (not rm or mc == rm[0])
+                    emit(wh, perks, 'Perfect Roll', w, rec, hint)
 
     # 2. Full Set
     section('2. FULL SET (all listed traits, any barrel/mag)')
-    for w, wh, rb, rm, r1, r2, otail in resolved:
+    for w, wh, rb, rm, r1, r2, otail, hint in resolved:
         if r1 and r2 and len(r1) <= 3 and len(r2) <= 3:
-            emit(wh, r1 + r2 + otail, 'Full Set', w)
+            emit(wh, r1 + r2 + otail, 'Full Set', w, True, hint)
 
     # 3. Combo depths, deepest first
     depths = sorted(((a, b) for a in (1, 2, 3) for b in (1, 2, 3)
                      if (a, b) != (1, 1)), key=lambda ab: (-(ab[0] + ab[1]), -max(ab)))
     for a, b in depths:
         section(f'3. COMBO {a}+{b}')
-        for w, wh, rb, rm, r1, r2, otail in resolved:
+        for w, wh, rb, rm, r1, r2, otail, hint in resolved:
             if len(r1) < a or len(r2) < b:
                 continue
             for c1 in itertools.combinations(r1, a):
                 for c2 in itertools.combinations(r2, b):
-                    emit(wh, list(c1) + list(c2) + otail, f'Combo {a}+{b}', w)
+                    rec = r1[0] in c1 and r2[0] in c2
+                    emit(wh, list(c1) + list(c2) + otail, f'Combo {a}+{b}', w,
+                         rec, hint)
 
     # 4. God Roll
     section('4. GOD ROLL (one trait per column + barrel/mag)')
-    for w, wh, rb, rm, r1, r2, otail in resolved:
+    for w, wh, rb, rm, r1, r2, otail, hint in resolved:
         if not (rb or rm):
             continue
         for t1 in (r1 or [None]):
@@ -267,17 +285,20 @@ def generate(rows, slim, weapons_by_name, plugsets):
                 for bc in (rb or [None]):
                     for mc in (rm or [None]):
                         perks = [x for x in [bc, mc] if x] + tc + otail
-                        emit(wh, perks, 'God Roll', w)
+                        rec = ((not r1 or t1 == r1[0]) and (not r2 or t2 == r2[0])
+                               and (not rb or bc == rb[0]) and (not rm or mc == rm[0]))
+                        emit(wh, perks, 'God Roll', w, rec, hint)
 
     # 5. Good Roll (includes weapons with no barrel/mag columns)
     section('5. GOOD ROLL (one trait per column, any barrel/mag)')
-    for w, wh, rb, rm, r1, r2, otail in resolved:
+    for w, wh, rb, rm, r1, r2, otail, hint in resolved:
         label = 'Good Roll' if (rb or rm) else 'God Roll + Good Roll'
         for t1 in (r1 or [None]):
             for t2 in (r2 or [None]):
                 tc = [x for x in [t1, t2] if x]
                 if tc:
-                    emit(wh, tc + otail, label, w)
+                    rec = (not r1 or t1 == r1[0]) and (not r2 or t2 == r2[0])
+                    emit(wh, tc + otail, label, w, rec, hint)
 
     return '\n'.join(lines), stats, resolved
 
