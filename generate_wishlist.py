@@ -172,11 +172,15 @@ def generate(rows, slim, weapons_by_name, plugsets):
       3. Combo a+b     - a desired traits in col 3, b in col 4 (deepest first)
       4. God Roll      - one desired trait per column + barrel + mag
       5. Good Roll     - one desired trait per column
+
+    Every note also carries the spreadsheet's recommended (first-listed) roll,
+    so DIM's Triage tab shows what the sheet actually wants: matching entries
+    read "★ RECOMMENDED ROLL", others read "★ Rec: <traits>".
     """
     stats = Counter()
 
     # ---- pass 1: resolve every weapon row against every candidate hash ----
-    resolved = []  # (row, hash, rb, rm, r1, r2, otail)
+    resolved = []  # (row, hash, rb, rm, r1, r2, otail, rec)
     for w in rows:
         base = w['Name'].split('\n')[0].strip()
         p1s, p2s = opts(w['Perk 1']), opts(w['Perk 2'])
@@ -200,7 +204,14 @@ def generate(rows, slim, weapons_by_name, plugsets):
             if (p1s and not r1) or (p2s and not r2):
                 continue
             ro = next((canon[norm(o)] for o in origins if norm(o) in canon), None)
-            resolved.append((w, wh, rb, rm, r1, r2, [ro] if ro else []))
+            # the recommended roll on THIS hash: the first-listed option per
+            # column that the hash can actually roll (relevant on legacy hashes
+            # that can't roll the sheet's true top pick)
+            rec = {'b': rb[0] if rb else None, 'm': rm[0] if rm else None,
+                   't1': r1[0] if r1 else None, 't2': r2[0] if r2 else None}
+            rec['text'] = ' + '.join(slim[h]['name'] for h in
+                                     (rec['t1'], rec['t2']) if h)
+            resolved.append((w, wh, rb, rm, r1, r2, [ro] if ro else [], rec))
 
     # ---- pass 2: emit ladder sections ----
     lines = [
@@ -212,6 +223,8 @@ def generate(rows, slim, weapons_by_name, plugsets):
         'per column, deepest first) > God Roll (one per column + barrel/mag) > '
         'Good Roll. Single lone perks are not flagged. Filter: wishlistnotes:"perfect roll", '
         '"full set", "combo 3+3" etc., "god roll", "good roll". '
+        'Every note also shows the sheet’s recommended roll; entries that ARE it '
+        'read “★ RECOMMENDED ROLL” — filter wishlistnotes:"recommended roll". '
         'Masterworks not matched.',
         '',
     ]
@@ -222,41 +235,51 @@ def generate(rows, slim, weapons_by_name, plugsets):
     def section(title):
         lines.extend(['', f'// ============ {title} ============', ''])
 
-    def emit(wh, perks, label, w):
+    def emit(wh, perks, label, w, rec, with_bm=False):
+        # Does this entry contain the sheet's recommended picks?
+        need = [rec['t1'], rec['t2']]
+        if with_bm:
+            need += [rec['b'], rec['m']]
+        pset = set(perks)
+        is_rec = all(h in pset for h in need if h)
+        suffix = ' | ★ RECOMMENDED ROLL' if is_rec else (
+            f" | ★ Rec: {rec['text']}" if rec['text'] else '')
         lines.append(f"dimwishlist:item={wh}&perks={','.join(map(str, perks))}"
-                     f"#notes:{label} — {tag_of(w)}")
+                     f"#notes:{label} — {tag_of(w)}{suffix}")
         stats[label.lower().replace(' ', '_').replace('+', 'p')] += 1
+        if is_rec:
+            stats['_recommended'] += 1
 
     # 1. Perfect Roll
     section('1. PERFECT ROLL (all listed traits + barrel/mag)')
-    for w, wh, rb, rm, r1, r2, otail in resolved:
+    for w, wh, rb, rm, r1, r2, otail, rec in resolved:
         if r1 and r2 and len(r1) <= 3 and len(r2) <= 3 and (rb or rm):
             for bc in (rb or [None]):
                 for mc in (rm or [None]):
                     perks = [x for x in [bc, mc] if x] + r1 + r2 + otail
-                    emit(wh, perks, 'Perfect Roll', w)
+                    emit(wh, perks, 'Perfect Roll', w, rec, with_bm=True)
 
     # 2. Full Set
     section('2. FULL SET (all listed traits, any barrel/mag)')
-    for w, wh, rb, rm, r1, r2, otail in resolved:
+    for w, wh, rb, rm, r1, r2, otail, rec in resolved:
         if r1 and r2 and len(r1) <= 3 and len(r2) <= 3:
-            emit(wh, r1 + r2 + otail, 'Full Set', w)
+            emit(wh, r1 + r2 + otail, 'Full Set', w, rec)
 
     # 3. Combo depths, deepest first
     depths = sorted(((a, b) for a in (1, 2, 3) for b in (1, 2, 3)
                      if (a, b) != (1, 1)), key=lambda ab: (-(ab[0] + ab[1]), -max(ab)))
     for a, b in depths:
         section(f'3. COMBO {a}+{b}')
-        for w, wh, rb, rm, r1, r2, otail in resolved:
+        for w, wh, rb, rm, r1, r2, otail, rec in resolved:
             if len(r1) < a or len(r2) < b:
                 continue
             for c1 in itertools.combinations(r1, a):
                 for c2 in itertools.combinations(r2, b):
-                    emit(wh, list(c1) + list(c2) + otail, f'Combo {a}+{b}', w)
+                    emit(wh, list(c1) + list(c2) + otail, f'Combo {a}+{b}', w, rec)
 
     # 4. God Roll
     section('4. GOD ROLL (one trait per column + barrel/mag)')
-    for w, wh, rb, rm, r1, r2, otail in resolved:
+    for w, wh, rb, rm, r1, r2, otail, rec in resolved:
         if not (rb or rm):
             continue
         for t1 in (r1 or [None]):
@@ -267,17 +290,17 @@ def generate(rows, slim, weapons_by_name, plugsets):
                 for bc in (rb or [None]):
                     for mc in (rm or [None]):
                         perks = [x for x in [bc, mc] if x] + tc + otail
-                        emit(wh, perks, 'God Roll', w)
+                        emit(wh, perks, 'God Roll', w, rec, with_bm=True)
 
     # 5. Good Roll (includes weapons with no barrel/mag columns)
     section('5. GOOD ROLL (one trait per column, any barrel/mag)')
-    for w, wh, rb, rm, r1, r2, otail in resolved:
+    for w, wh, rb, rm, r1, r2, otail, rec in resolved:
         label = 'Good Roll' if (rb or rm) else 'God Roll + Good Roll'
         for t1 in (r1 or [None]):
             for t2 in (r2 or [None]):
                 tc = [x for x in [t1, t2] if x]
                 if tc:
-                    emit(wh, tc + otail, label, w)
+                    emit(wh, tc + otail, label, w, rec)
 
     return '\n'.join(lines), stats, resolved
 
@@ -382,6 +405,7 @@ def main():
           f"{stats['full_set']} full-set / {combo_total} combo-depth / "
           f"{stats['god_roll']} god / "
           f"{stats['good_roll'] + stats['god_roll_p_good_roll']} good entries "
+          f"({stats['_recommended']} flagged as the recommended roll) "
           f"({stats['unmatched_weapons']} unmatched weapons)", file=sys.stderr)
     for k in sorted(stats):
         if k.startswith('combo'):

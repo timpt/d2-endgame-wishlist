@@ -37,20 +37,29 @@ Note the tags describe *sheet coverage*: on a weapon where the sheet lists only 
 
 ## Filtering in DIM
 
-Quotes are required — the phrases contain spaces. None of the tags substring-collide, so each filter is independent.
+Quotes are required — the phrases contain spaces. Each item shows exactly one
+tier tag (its best), so the tier filters are exclusive — no overlap, no
+subtraction tricks needed.
 
-| Filter | Shows |
+| Filter | Best roll is |
 |---|---|
-| `wishlistnotes:"god roll"` | Perfect single rolls (barrel + mag + traits) |
-| `wishlistnotes:"good roll"` | Everything with the right traits |
-| `wishlistnotes:"good roll" -wishlistnotes:"god roll"` | Right traits, wrong barrel/mag |
-| `wishlistnotes:"combo 2+2"` | Multi-perk drops holding 2+ god rolls (any exact depth works: "combo 3+2", "combo 3+3", …) |
+| `wishlistnotes:"perfect roll"` | Everything the sheet wants, barrel and mag included |
+| `wishlistnotes:"full set"` | Every listed trait, barrel/mag not matched |
+| `wishlistnotes:"combo 2+2"` | That exact depth (any works: "combo 3+2", "combo 3+3", …) |
 | `wishlistnotes:"combo 3"` | Any depth with 3 wishlisted traits in column 3 |
-| `wishlistnotes:"full set"` | Drops containing every listed trait for that gun |
-| `wishlistnotes:"notable perk" -wishlistnotes:"good roll"` | Lone desirable perks with no matching partner |
-| `wishlistnotes:"tier s"` | Any tier letter from the sheet (s/a/b/…) |
+| `wishlistnotes:"combo"` | Any multi-perk depth at all |
+| `wishlistnotes:"god roll"` | One classic god roll: traits + barrel/mag |
+| `wishlistnotes:"good roll"` | Right traits, wrong barrel/mag |
+| `wishlistnotes:"tier s"` | Any tier letter from the sheet (s/a/b/…) — stacks with the above |
+| `wishlistnotes:"recommended roll"` | The sheet's exact top pick — stacks with the above |
 
-These stack with each other and with any DIM filter: `wishlistnotes:"full set" wishlistnotes:"god roll"` is the jackpot search — everything the sheet wants, barrel and mag included. `is:retiredperk wishlistnotes:"good roll"` finds flagged rolls whose perks can no longer drop (the keep-forever pile).
+Every note also carries the recommendation: entries that *are* the sheet's
+recommended roll read `★ RECOMMENDED ROLL`, and every other note names it after
+`★ Rec:` so you can see what you're missing without leaving DIM.
+
+These stack with any DIM filter: `wishlistnotes:"perfect roll"
+wishlistnotes:"tier s"` is the chase list, `is:retiredperk is:wishlist` finds
+flagged rolls whose perks can no longer drop (the keep-forever pile).
 
 ## The intended workflow
 
