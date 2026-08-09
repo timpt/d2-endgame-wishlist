@@ -43,10 +43,12 @@ data regenerated once with the current generator (see below) before it works.
 | `wishlistnotes:"good roll"` | Right traits, wrong barrel/mag |
 | `is:wishlist` | Anything flagged |
 
-One extra filter stacks with all of those: every note also carries the sheet's
-recommended roll — entries that *are* it get a `★ RECOMMENDED ROLL` tag
-(`wishlistnotes:"recommended roll"`), every other note names it after `★ Rec:`
-so you can see what you're missing right in DIM.
+One extra filter stacks with all of those: every note also measures the drop
+against the sheet's recommended roll. Entries that *are* it get a
+`★ RECOMMENDED ROLL` tag (`wishlistnotes:"recommended roll"`); every other note
+reads `★ Need: …`, naming only what that drop is missing — so a Perfect Roll
+with the wrong magazine says `★ Need: High-Caliber Rounds`, not a list of
+traits it already has.
 
 Full reference: [`docs/WISHLIST.md`](docs/WISHLIST.md).
 

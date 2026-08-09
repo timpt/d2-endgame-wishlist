@@ -53,9 +53,11 @@ subtraction tricks needed.
 | `wishlistnotes:"tier s"` | Any tier letter from the sheet (s/a/b/…) — stacks with the above |
 | `wishlistnotes:"recommended roll"` | The sheet's exact top pick — stacks with the above |
 
-Every note also carries the recommendation: entries that *are* the sheet's
-recommended roll read `★ RECOMMENDED ROLL`, and every other note names it after
-`★ Rec:` so you can see what you're missing without leaving DIM.
+Every note also measures the drop against the sheet's recommended roll: entries
+that *are* it read `★ RECOMMENDED ROLL`, and every other note reads `★ Need: …`
+naming only the gap — the barrel, magazine or trait that drop would have to
+swap to become the recommendation. A Perfect Roll holds every listed trait by
+definition, so on one of those the gap is always a barrel or magazine.
 
 These stack with any DIM filter: `wishlistnotes:"perfect roll"
 wishlistnotes:"tier s"` is the chase list, `is:retiredperk is:wishlist` finds
