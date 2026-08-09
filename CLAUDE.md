@@ -52,11 +52,15 @@ fast. Prints per-tier entry counts and warns about unmatched weapons.
 5. **Enhanced perks:** entries use base perk hashes; DIM normalizes enhanced
    traits to base when matching. Don't emit enhanced hashes.
 6. **`docs/index.html` is hand-maintained, not templated.** `build_ui()` patches
-   the existing file in place with three regexes — `const DATA = [...];`,
-   `const ICONS = {...};`, and the first `<n> entries` in the footer. Edit the
-   markup freely, but keep those two `const` lines on their own lines and leave
-   a literal entry count in the footer *above* the script, or a rebuild will
-   silently stop updating the page.
+   the existing file in place with four regexes — `const DATA = [...];`,
+   `const ICONS = {...};`, `const PERKS = {...};`, and the first `<n> entries`
+   in the footer. Edit the markup freely, but keep those `const` lines on their
+   own lines and leave a literal entry count in the footer *above* the script,
+   or a rebuild will silently stop updating the page.
+7. **PERKS deliberately contains enhanced-perk hashes.** It is a reverse lookup
+   (plug hash → spreadsheet option name) used by the vault view to match live
+   drops the way DIM does — enhanced counts as base. This does not contradict
+   invariant 5: wishlist *emission* stays base-hash-only.
 
 ## Known limits (don't try to "fix" in the file format)
 

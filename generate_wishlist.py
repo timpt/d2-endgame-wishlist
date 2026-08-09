@@ -97,12 +97,8 @@ def build_indexes(items: dict, plugsets_raw: dict):
     return slim, weapons_by_name, plugsets
 
 
-def plug_index(slim: dict, plugsets: dict, whash: int) -> dict[str, int]:
-    """All plugs available on a weapon hash: normalized name -> canonical hash.
-
-    Prefers the base (non-enhanced) hash when both exist; DIM's wishlist
-    matching treats enhanced traits as equal to their base version.
-    """
+def _plug_name_index(slim: dict, plugsets: dict, whash: int) -> dict[str, list]:
+    """All plugs available on a weapon hash: normalized name -> [(enhanced, hash)]."""
     plugs = set()
     for se in slim[whash]['sockets'].get('socketEntries', []):
         for key in ('randomizedPlugSetHash', 'reusablePlugSetHash'):
@@ -120,6 +116,16 @@ def plug_index(slim: dict, plugsets: dict, whash: int) -> dict[str, int]:
             continue
         enhanced = 'enhanced' in (pd['itemTypeDisplayName'] or '').casefold()
         idx[norm(pd['name'])].append((enhanced, ph))
+    return idx
+
+
+def plug_index(slim: dict, plugsets: dict, whash: int) -> dict[str, int]:
+    """All plugs available on a weapon hash: normalized name -> canonical hash.
+
+    Prefers the base (non-enhanced) hash when both exist; DIM's wishlist
+    matching treats enhanced traits as equal to their base version.
+    """
+    idx = _plug_name_index(slim, plugsets, whash)
     return {n: sorted(lst)[0][1] for n, lst in idx.items()}
 
 
@@ -277,9 +283,15 @@ def generate(rows, slim, weapons_by_name, plugsets):
 
 
 def build_ui(rows, slim, weapons_by_name, plugsets, html_path, n_entries):
-    """Refresh the embedded DATA/ICONS consts (and entry count) in the ladder UI."""
+    """Refresh the embedded DATA/ICONS/PERKS consts (and entry count) in the UI.
+
+    PERKS maps every rollable plug hash (INCLUDING enhanced variants) back to
+    the spreadsheet option name — a reverse lookup so the vault view can match
+    live drops the way DIM does. This never feeds wishlist emission, which
+    stays base-hash-only (invariant 5).
+    """
     import json
-    data, icons = [], {}
+    data, icons, perk_hashes = [], {}, {}
     for w in rows:
         base = w['Name'].split('\n')[0].strip()
         variant = w['Name'].split('\n')[1].strip() if '\n' in w['Name'] else ''
@@ -290,21 +302,24 @@ def build_ui(rows, slim, weapons_by_name, plugsets, html_path, n_entries):
         cands = []
         for key in [norm(base)] + [norm(base) + s for s in ADEPT_SUFFIXES]:
             cands.extend(weapons_by_name.get(key, []))
-        kept, wicon = 0, ''
+        kept, wicon = [], ''
         u = {'b': set(), 'm': set(), 'p1': set(), 'p2': set()}
         for wh in cands:
-            canon = plug_index(slim, plugsets, wh)
+            idx = _plug_name_index(slim, plugsets, wh)
+            canon = {n: sorted(lst)[0][1] for n, lst in idx.items()}
             if (p1s and not any(norm(o) in canon for o in p1s)):
                 continue
             if (p2s and not any(norm(o) in canon for o in p2s)):
                 continue
-            kept += 1
+            kept.append(wh)
             wicon = wicon or slim[wh]['icon']
             for srcl, key in [(barrels, 'b'), (mags, 'm'), (p1s, 'p1'), (p2s, 'p2')]:
                 for o in srcl:
                     if norm(o) in canon:
                         u[key].add(o)
                         icons.setdefault(o, slim[canon[norm(o)]]['icon'])
+                        for _enh, ph in idx[norm(o)]:
+                            perk_hashes[ph] = o
             for o in origins:
                 if norm(o) in canon:
                     icons.setdefault(o, slim[canon[norm(o)]]['icon'])
@@ -317,7 +332,8 @@ def build_ui(rows, slim, weapons_by_name, plugsets, html_path, n_entries):
                      'm': [o for o in mags if o in u['m']],
                      'p1': [o for o in p1s if o in u['p1']],
                      'p2': [o for o in p2s if o in u['p2']],
-                     'o': origins[0] if origins else '', 'h': kept, 'ic': wicon})
+                     'o': origins[0] if origins else '', 'h': len(kept),
+                     'hs': kept, 'ic': wicon})
     html = open(html_path).read()
     html = re.sub(r'const DATA = \[.*?\];\n',
                   lambda m: 'const DATA = ' + json.dumps(data, separators=(',', ':')) + ';\n',
@@ -325,10 +341,13 @@ def build_ui(rows, slim, weapons_by_name, plugsets, html_path, n_entries):
     html = re.sub(r'const ICONS = \{.*?\};\n',
                   lambda m: 'const ICONS = ' + json.dumps(icons, separators=(',', ':')) + ';\n',
                   html, count=1, flags=re.S)
+    html = re.sub(r'const PERKS = \{.*?\};\n',
+                  lambda m: 'const PERKS = ' + json.dumps(perk_hashes, separators=(',', ':')) + ';\n',
+                  html, count=1, flags=re.S)
     html = re.sub(r'[\d,]+ entries', f'{n_entries:,} entries', html, count=1)
     open(html_path, 'w').write(html)
-    print(f'Updated UI data in {html_path}: {len(data)} weapons, {len(icons)} perk icons',
-          file=sys.stderr)
+    print(f'Updated UI data in {html_path}: {len(data)} weapons, {len(icons)} perk icons, '
+          f'{len(perk_hashes)} perk hashes', file=sys.stderr)
 
 
 def main():

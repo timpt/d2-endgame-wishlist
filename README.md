@@ -21,6 +21,17 @@ updates automatically (DIM refreshes once a day).
 **Site** — open `docs/index.html`, or the GitHub Pages URL once enabled.
 Deep links work: `…/index.html#w=Mint%20Retrograde`.
 
+**Vault** — the site's Vault tab signs in with your Bungie account (read-only,
+in-browser, nothing stored) and runs every weapon you own through the ladder at
+once — including drops below the bar that DIM never flags. One-time setup:
+create an app at [bungie.net/en/Application](https://www.bungie.net/en/Application)
+(OAuth Client Type **Public**, Redirect URL = the site's exact https address,
+Origin Header = the site's origin) and paste the client id + API key into the
+`BUNGIE_APP` block at the top of the script in `docs/index.html`. Those two
+values are meant to be public — a public OAuth client has no secret and the API
+key is origin-locked; this is the same model DIM uses. The tab needs the site
+data regenerated once with the current generator (see below) before it works.
+
 **Filters** (each item carries exactly one tag, so these don't overlap):
 
 | Filter | Best roll is |
@@ -46,6 +57,16 @@ python generate_wishlist.py path/to/spreadsheet.xlsx \
 
 One command refreshes both artifacts from the same manifest snapshot, so they
 can't drift. Commit the two changed files and push.
+
+**Or rebuild on GitHub instead** — the *Rebuild wishlist* workflow (Actions
+tab) does all of the above on a runner. One-time setup under Settings →
+Secrets and variables → Actions: add a secret `BUNGIE_API_KEY`, and a variable
+`SPREADSHEET_URL` pointing at a direct `.xlsx` download of the sheet (for a
+Google Sheet: `https://docs.google.com/spreadsheets/d/<ID>/export?format=xlsx`).
+It commits the two regenerated files only when they changed, and Pages
+redeploys from that commit. Note the *page's* Bungie ids can't live in a
+secret — Pages is static files, so anything the browser uses is public; that's
+why the vault uses a secretless public OAuth client instead.
 
 ## Deploy for a friend
 
