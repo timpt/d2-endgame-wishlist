@@ -181,8 +181,8 @@ def generate(rows, slim, weapons_by_name, plugsets):
       5. Good Roll     - one desired trait per column
 
     Every note also carries the spreadsheet's recommended (first-listed) roll,
-    so DIM's Triage tab shows what the sheet actually wants: matching entries
-    read "★ RECOMMENDED ROLL", others read "★ Rec: <traits>".
+    so DIM's Triage tab shows what the sheet actually wants: entries that ARE
+    it read "★ RECOMMENDED ROLL", others read "★ Need: <what's missing>".
     """
     stats = Counter()
 
@@ -216,8 +216,6 @@ def generate(rows, slim, weapons_by_name, plugsets):
             # that can't roll the sheet's true top pick)
             rec = {'b': rb[0] if rb else None, 'm': rm[0] if rm else None,
                    't1': r1[0] if r1 else None, 't2': r2[0] if r2 else None}
-            rec['text'] = ' + '.join(slim[h]['name'] for h in
-                                     (rec['t1'], rec['t2']) if h)
             resolved.append((w, wh, rb, rm, r1, r2, [ro] if ro else [], rec))
 
     # ---- pass 2: emit ladder sections ----
@@ -243,19 +241,23 @@ def generate(rows, slim, weapons_by_name, plugsets):
         lines.extend(['', f'// ============ {title} ============', ''])
 
     def emit(wh, perks, label, w, rec, with_bm=False):
-        # Does this entry contain the sheet's recommended picks?
+        # Name the GAP, not the whole recommendation. A Perfect Roll holds every
+        # listed trait by construction, so re-listing the recommended traits on
+        # one told the reader to chase perks the drop already had; the thing it
+        # actually lacked (a barrel or mag) went unmentioned. Only barrel/mag
+        # count as missing on entries that name them at all (with_bm).
         need = [rec['t1'], rec['t2']]
         if with_bm:
             need += [rec['b'], rec['m']]
         pset = set(perks)
-        is_rec = all(h in pset for h in need if h)
-        suffix = f' {NOTE_SEP} ★ RECOMMENDED ROLL' if is_rec else (
-            f" {NOTE_SEP} ★ Rec: {rec['text']}" if rec['text'] else '')
+        missing = [h for h in need if h and h not in pset]
+        suffix = (f' {NOTE_SEP} ★ RECOMMENDED ROLL' if not missing else
+                  f" {NOTE_SEP} ★ Need: {' + '.join(slim[h]['name'] for h in missing)}")
         note = f'{label} — {tag_of(w)}{suffix}'.replace('|', '/')  # see NOTE_SEP
         lines.append(f"dimwishlist:item={wh}&perks={','.join(map(str, perks))}"
                      f"#notes:{note}")
         stats[label.lower().replace(' ', '_').replace('+', 'p')] += 1
-        if is_rec:
+        if not missing:
             stats['_recommended'] += 1
 
     # 1. Perfect Roll
