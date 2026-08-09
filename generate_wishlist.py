@@ -40,6 +40,13 @@ SHEETS = ['Autos', 'Bows', 'HCs', 'Pulses', 'Scouts', 'Sidearms', 'SMGs',
 ADEPT_SUFFIXES = [' (adept)', ' (timelost)', ' (harrowed)']
 SKIP_VALUES = {'none', 'n/a', '?'}
 
+# Separator between the tier tag and the recommended-roll annotation.
+# NEVER use "|": DIM captures the note with [^|]* (wishlist-file.ts), so a pipe
+# truncates the note there and everything after it is silently discarded —
+# taking the wishlistnotes: filter for that text with it. emit() also replaces
+# stray pipes coming from perk names for the same reason.
+NOTE_SEP = '·'
+
 
 def norm(s: str) -> str:
     """Normalize a name for matching: straight quotes, collapsed spaces, casefold."""
@@ -242,10 +249,11 @@ def generate(rows, slim, weapons_by_name, plugsets):
             need += [rec['b'], rec['m']]
         pset = set(perks)
         is_rec = all(h in pset for h in need if h)
-        suffix = ' | ★ RECOMMENDED ROLL' if is_rec else (
-            f" | ★ Rec: {rec['text']}" if rec['text'] else '')
+        suffix = f' {NOTE_SEP} ★ RECOMMENDED ROLL' if is_rec else (
+            f" {NOTE_SEP} ★ Rec: {rec['text']}" if rec['text'] else '')
+        note = f'{label} — {tag_of(w)}{suffix}'.replace('|', '/')  # see NOTE_SEP
         lines.append(f"dimwishlist:item={wh}&perks={','.join(map(str, perks))}"
-                     f"#notes:{label} — {tag_of(w)}{suffix}")
+                     f"#notes:{note}")
         stats[label.lower().replace(' ', '_').replace('+', 'p')] += 1
         if is_rec:
             stats['_recommended'] += 1

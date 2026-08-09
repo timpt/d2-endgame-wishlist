@@ -61,6 +61,13 @@ fast. Prints per-tier entry counts and warns about unmatched weapons.
    (plug hash → spreadsheet option name) used by the vault view to match live
    drops the way DIM does — enhanced counts as base. This does not contradict
    invariant 5: wishlist *emission* stays base-hash-only.
+8. **Never put `|` in a note.** DIM captures notes with `[^|]*`
+   (`src/app/wishlists/wishlist-file.ts`), so a pipe truncates the note there
+   and everything after it is dropped *silently* — the entry still loads and
+   still badges perks, but any `wishlistnotes:` filter for the lost text
+   matches nothing. `NOTE_SEP` exists for this; `emit()` also rewrites stray
+   pipes. Perks are unaffected (they precede `#notes:`), which is why this
+   fails invisibly.
 
 ## Known limits (don't try to "fix" in the file format)
 
