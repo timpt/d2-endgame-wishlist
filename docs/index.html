@@ -75,6 +75,19 @@ select.flt{cursor:pointer}
 .wephead h2{font-size:24px;text-transform:uppercase;line-height:1.1}
 .badge{font-size:11px;font-family:"Chakra Petch";font-weight:600;text-transform:uppercase;letter-spacing:.08em;padding:2px 8px;border-radius:4px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
 .badge.var{color:#d8b25c;border-color:#5c4d26}
+
+/* ---------- spreadsheet tier ----------
+   Reuses the D2 rarity ramp so the letter reads at a glance:
+   D common · C uncommon · B rare · A legendary · S exotic.
+   Anything unrecognised falls back to the neutral end. */
+[data-tier]{--tc:var(--r0)}
+[data-tier="S"]{--tc:var(--r4)}
+[data-tier="A"]{--tc:var(--r3)}
+[data-tier="B"]{--tc:var(--r2)}
+[data-tier="C"]{--tc:var(--r1)}
+[data-tier="D"]{--tc:var(--r0)}
+.badge.tier{color:var(--tc);border-color:color-mix(in srgb,var(--tc) 42%,transparent);background:color-mix(in srgb,var(--tc) 10%,transparent)}
+.tl{color:var(--tc);font-weight:600}
 .meta{color:var(--faint);font-size:13px;margin-bottom:16px}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
 .col{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
@@ -118,16 +131,19 @@ select.flt{cursor:pointer}
 /* ---------- weapons ---------- */
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
 .tchips{display:flex;gap:6px;flex-wrap:wrap}
-.tchips button{border:1px solid var(--line);border-radius:6px;padding:7px 12px;font-family:"Chakra Petch";font-weight:600;color:var(--dim);min-width:38px;transition:color .12s,border-color .12s,background .12s}
-.tchips button:hover{color:var(--text);border-color:var(--edge)}
-.tchips button[aria-pressed="true"]{background:var(--panel2);color:var(--text);border-color:var(--edge)}
+/* muted tier colour when off, full colour + tint when on, so the row reads as a legend */
+.tchips button{border:1px solid var(--line);border-radius:6px;padding:7px 12px;font-family:"Chakra Petch";font-weight:600;color:color-mix(in srgb,var(--tc) 55%,var(--faint));min-width:38px;transition:color .12s,border-color .12s,background .12s}
+.tchips button:hover{color:var(--tc);border-color:color-mix(in srgb,var(--tc) 40%,transparent)}
+.tchips button[aria-pressed="true"]{color:var(--tc);border-color:color-mix(in srgb,var(--tc) 55%,transparent);background:color-mix(in srgb,var(--tc) 14%,transparent)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
 @media(max-width:420px){.grid{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;cursor:pointer;transition:border-color .12s,background .12s;text-align:left;width:100%}
-.card:hover{border-color:#4d5570;background:var(--panel2)}
+/* the left edge carries the tier colour, so a scan down the grid reads as tiers */
+.card{background:var(--panel);border:1px solid var(--line);border-left:3px solid color-mix(in srgb,var(--tc) 55%,var(--line));border-radius:10px;padding:14px;cursor:pointer;transition:border-color .12s,background .12s;width:100%}
+.card:hover{border-color:#4d5570;border-left-color:var(--tc);background:var(--panel2)}
 .card .top{display:flex;align-items:center;gap:8px;margin-bottom:2px}
 .card .top b{font-family:"Chakra Petch";font-size:15.5px}
-.tletter{margin-left:auto;font-family:"Chakra Petch";font-weight:700;font-size:14px;width:26px;height:26px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--dim);flex:none}
+.tletter{margin-left:auto;font-family:"Chakra Petch";font-weight:700;font-size:14px;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex:none;
+  color:var(--tc);border:1px solid color-mix(in srgb,var(--tc) 48%,transparent);background:color-mix(in srgb,var(--tc) 13%,transparent)}
 .card .sub{color:var(--faint);font-size:12px;margin-bottom:10px}
 .plist{font-size:12.5px;color:var(--dim);line-height:1.65}
 .plist b{color:#c9cdd8;font-weight:500}
@@ -308,7 +324,7 @@ function loadWeapon(w){
   $('#wep').innerHTML=`
     <div class="wephead">${wico(w,'wi')}<h2>${esc(w.n)}</h2>
       ${w.v?`<span class="badge var">${esc(w.v)}</span>`:''}
-      <span class="badge">Tier ${esc(w.t)}</span><span class="badge">${esc(w.s)}</span></div>
+      <span class="badge tier" data-tier="${esc(w.t)}">Tier ${esc(w.t)}</span><span class="badge">${esc(w.s)}</span></div>
     <div class="meta">${esc(w.f)} · ${esc(w.src)} · ${w.h} hash variant${w.h>1?'s':''}${w.o?` · origin: ${esc(w.o)}`:''}</div>
     ${recStrip(w)}
     <div class="cols">${cols}</div>
@@ -360,7 +376,7 @@ function suggest(q){
   sugHits=DATA.filter(w=>w.n.toLowerCase().includes(n)).slice(0,12);
   sugI=-1;
   box.innerHTML=sugHits.length
-    ? sugHits.map(w=>`<button type="button" role="option" data-i="${w.i}">${wico(w,'wi-s')}<b>${esc(w.n)}</b>${w.v?` <span class="badge var" style="font-size:10px">${esc(w.v)}</span>`:''}<span class="t">Tier ${esc(w.t)} · ${esc(w.s)}</span></button>`).join('')
+    ? sugHits.map(w=>`<button type="button" role="option" data-i="${w.i}">${wico(w,'wi-s')}<b>${esc(w.n)}</b>${w.v?` <span class="badge var" style="font-size:10px">${esc(w.v)}</span>`:''}<span class="t">Tier <span class="tl" data-tier="${esc(w.t)}">${esc(w.t)}</span> · ${esc(w.s)}</span></button>`).join('')
     : '<div class="noopt">No weapons found</div>';
   box.classList.add('on');
   $('#q').setAttribute('aria-expanded','true');
@@ -389,7 +405,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('.search'))closeSugg(
 const sheets=[...new Set(DATA.map(w=>w.s))].sort();
 $('#wsheet').innerHTML+='<option>'+sheets.join('</option><option>')+'</option>';
 const tiers=['S','A','B','C','D'];
-$('#wtiers').innerHTML=tiers.map(t=>`<button type="button" data-t="${t}" aria-pressed="false" aria-label="Tier ${t}">${t}</button>`).join('');
+$('#wtiers').innerHTML=tiers.map(t=>`<button type="button" data-t="${t}" data-tier="${t}" aria-pressed="false" aria-label="Tier ${t}">${t}</button>`).join('');
 const PAGE=30;
 let wshow=PAGE, wtier=new Set();
 $$('#wtiers button').forEach(b=>b.onclick=()=>{const t=b.dataset.t;
@@ -413,7 +429,7 @@ function renderGrid(){
   const hits=DATA.filter(matches);
   $('#wcount').textContent=`${hits.length} weapon${hits.length===1?'':'s'}`;
   $('#wgrid').innerHTML=hits.length? hits.slice(0,wshow).map(w=>`
-    <div class="card" tabindex="0" role="button" data-i="${w.i}" aria-label="Open ${esc(w.n)} in roll checker">
+    <div class="card" tabindex="0" role="button" data-i="${w.i}" data-tier="${esc(w.t)}" aria-label="Open ${esc(w.n)} in roll checker, tier ${esc(w.t)}">
       <div class="top">${wico(w,'wi-s')}<b>${esc(w.n)}</b>${w.v?`<span class="badge var" style="font-size:10px">${esc(w.v)}</span>`:''}<span class="tletter" title="Spreadsheet tier ${esc(w.t)}">${esc(w.t)}</span></div>
       <div class="sub">${esc(w.f)} · ${esc(w.s)} · ${esc(w.src)}</div>
       <div class="plist">
