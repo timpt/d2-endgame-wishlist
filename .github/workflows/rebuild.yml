@@ -1,0 +1,72 @@
+# Rebuilds the wishlist + site data on GitHub's runners, so no one needs the
+# API key or a local Python setup.
+#
+# One-time setup (Settings → Secrets and variables → Actions):
+#   Secret   BUNGIE_API_KEY   your key from bungie.net/en/Application
+#   Variable SPREADSHEET_URL  direct .xlsx download URL for the Endgame
+#                             Analysis sheet, e.g. a Google Sheets link of the
+#                             form  https://docs.google.com/spreadsheets/d/<ID>/export?format=xlsx
+#
+# Then run it from the Actions tab (optionally overriding the URL per run).
+# It commits EndgameAnalysis-wishlist-complete.txt + docs/index.html only if
+# they changed; GitHub Pages redeploys automatically off that commit.
+
+name: Rebuild wishlist
+
+on:
+  workflow_dispatch:
+    inputs:
+      spreadsheet_url:
+        description: Spreadsheet .xlsx URL (defaults to the SPREADSHEET_URL repo variable)
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download spreadsheet
+        env:
+          URL: ${{ inputs.spreadsheet_url || vars.SPREADSHEET_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "::error::No spreadsheet URL. Pass one when dispatching, or set the SPREADSHEET_URL repository variable."
+            exit 1
+          fi
+          curl -fsSL "$URL" -o spreadsheet.xlsx
+          ls -la spreadsheet.xlsx
+
+      - name: Generate wishlist + site data
+        env:
+          BUNGIE_API_KEY: ${{ secrets.BUNGIE_API_KEY }}
+        run: |
+          if [ -z "$BUNGIE_API_KEY" ]; then
+            echo "::error::BUNGIE_API_KEY secret is not set (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          python generate_wishlist.py spreadsheet.xlsx \
+            -o EndgameAnalysis-wishlist-complete.txt \
+            --ui docs/index.html
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add EndgameAnalysis-wishlist-complete.txt docs/index.html
+          if git diff --cached --quiet; then
+            echo "No changes — nothing to commit."
+            exit 0
+          fi
+          git commit -m "Rebuild wishlist and site data from spreadsheet"
+          git push
